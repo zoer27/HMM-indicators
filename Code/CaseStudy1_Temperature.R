@@ -126,7 +126,7 @@ temps_hmm2$AIC_conditional()
 
 # Manuscript Plots --------------------------------------------------------
 #read in model fits if needed: 
-#load("Code/Results/physical_indicators_hmm.RData")
+load("Results/physical_indicators_hmm.RData")
 
 #function to make dataframes out of parameter results=
 Summ_table<-function(obspar, nstate ){
@@ -162,7 +162,7 @@ names(pal)<-c("1", "3", "2")
 
 temps_long_res<- temps_long_res %>%left_join(obs_ests2, by = c("time", "Indicator", "state"))
 
-lab<-c("Sea surface\ntemperature", "Summer temperature\nat 20 m", "Winter temperature\nat 20 m", "Summer temperature\nat 50 m", "Summer salinity\nat 50 m")
+lab<-c("Sea surface\ntemperature (scaled)", "Summer temperature\nat 20 m (scaled)", "Winter temperature\nat 20 m (scaled)", "Summer temperature\nat 50 m (scaled)", "Summer salinity\nat 50 m (scaled)")
 
 names(lab)<-temp_indicators
 
@@ -186,7 +186,7 @@ ggplot(temps_long_res) +
                         panel.grid.minor = element_blank())
 
 
-#ggsave("Figures/Physical_indicators_data_and_model_preds.png", dpi = 600)
+ggsave("Figures/Physical_indicators_data_and_model_preds.png", dpi = 600)
 
 #make time plot manually
 #gives  parameter values at each time step
@@ -211,15 +211,17 @@ mod_ests<-mod_ests %>% left_join(mod_lwr, by = c("time", "Indicator", "state")) 
   left_join(mod_upr, by = c("time", "Indicator", "state"))
 
 #rename states
-mod_ests1<-mod_ests %>% mutate(new_state = ifelse(state == 1, 3, ifelse(state == 2, 1, 2)))
+mod_ests1<-mod_ests %>% mutate(new_state = ifelse(state == 1, 3, ifelse(state == 2, 1, 2))) %>%
+  mutate(Year = time + 1997)
 
 #plot
 plot2<-ggplot(mod_ests1) + 
-  geom_ribbon(aes(x = time, ymin = lwr, ymax = upr, fill = as.factor(new_state), group = as.factor(new_state)), alpha = 0.4) +
-  geom_line(aes(x = time, y = mean, color = as.factor(new_state), group = as.factor(new_state))) + 
+  geom_ribbon(aes(x = Year, ymin = lwr, ymax = upr, fill = as.factor(new_state), group = as.factor(new_state)), alpha = 0.4) +
+  geom_line(aes(x = Year, y = mean, color = as.factor(new_state), group = as.factor(new_state))) + 
   facet_wrap(~factor(Indicator, levels = temp_indicators), scales = "free_y", labeller = as_labeller(lab), nrow = 3, strip.position = "left") + 
   scale_color_manual(values = pal) + scale_fill_manual(values = pal) + 
-  labs(y = NULL, fill = "State", color = "State") +
+  labs(y = NULL, x = "Year", fill = "State", color = "State") +
+  scale_x_continuous(breaks = seq(1998, 2022, by = 4)) +
   theme_light() + 
   theme(strip.background = element_blank(), strip.placement = "outside", 
                         strip.text = element_text(color = "black", size = 13), 
@@ -231,7 +233,7 @@ plot2<-ggplot(mod_ests1) +
                         panel.grid.minor = element_blank())
 plot2
 
-#ggsave("Figures/time_effect.png", plot2, dpi = 600)  
+ggsave("Figures/time_effect.png", plot2, dpi = 600)  
 
 temps_hmm2$coeff_fe()
 #SST is 0.016
