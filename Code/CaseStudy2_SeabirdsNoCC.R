@@ -32,6 +32,7 @@ ggplot(NoCC_noFS_long) + geom_point(aes(x = Year, y = Density_Anomaly)) + facet_
 
 # Models ---------------------------------------------------------
 #limiting species based on range of density anomaly values
+NoCC_noFS_sd<-apply(NoCC_noFS, 2, sd,na.rm=T)[-c(1,56)]
 NoCC_noFS_subset<-names(NoCC_noFS_sd)[which(NoCC_noFS_sd >= 0.2)]
 #removing immature and unidentified gulls
 idx<-which(NoCC_noFS_subset %in% c("IMGU", "GULL"))
