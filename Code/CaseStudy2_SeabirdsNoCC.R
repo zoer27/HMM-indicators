@@ -42,66 +42,95 @@ NoCC_noFS_subset<-NoCC_noFS_subset[-idx]
 NoCC_dists<-lapply(NoCC_noFS_subset, function(x){x = "norm"})
 names(NoCC_dists)<-sort(NoCC_noFS_subset)
 
-#initial values
-#based on plots and what makes it converge
+#plotting species
 NoCC_noFS_long %>% filter(Species %in% NoCC_noFS_subset) %>%
   ggplot() + geom_point(aes(x = Year, y = Density_Anomaly)) + facet_wrap(~Species, scales = "free_y")
 
-NoCC_inits2_noFS<-list()
 
-NoCC_inits2_noFS$BFAL<-list(mean = c(0.5, -0.1), sd = c(1,1))
-NoCC_inits2_noFS$CAAU<-list(mean = c(-0.3, 0.5), sd = c(1,1))
-NoCC_inits2_noFS$CATE<-list(mean = c(0.25, -0.2), sd = c(1,1))
-NoCC_inits2_noFS$COMU<-list(mean = c(0, 0.3), sd = c(1,1))
-#NoCC_inits2_noFS$GULL<-list(mean = c(0.2, -0.1), sd = c(1,1))
-#NoCC_inits2_noFS$IMGU<-list(mean = c(0.3, -0.1), sd = c(1,1))
-NoCC_inits2_noFS$NOFU<-list(mean = c(0.4, -0.1), sd = c(1,1))
-NoCC_inits2_noFS$PFSH<-list(mean = c(-0.1, 0.3), sd = c(1,1))
-NoCC_inits2_noFS$SOSH<-list(mean = c(0.3, -0.8), sd = c(1,1))
-NoCC_inits2_noFS$WEGU<-list(mean = c(0.4, -0.1), sd = c(1,1))
-NoCC_inits2_noFS$WGGU<-list(mean = c(0.3, -0.1), sd = c(1,1))
+#random initial values and model fitting
+AICs <- 0
+best_aic <- 1.0e10
+best_model<-NULL
+for(i in 1:200){
+  print(i)
+  NoCC_inits2_noFS<-NoCC_noFS_obs2<-NoCC_noFS_hmm2<-out1 <- NULL;
+  
+  #set up initial values
+  NoCC_inits2_noFS<-list()
+  inits<-kmeans(na.omit(NoCC_noFS[,NoCC_noFS_subset]), 2)$centers
+  for(j in 1:length(NoCC_noFS_subset)){
+    NoCC_inits2_noFS[[NoCC_noFS_subset[j]]]<-list(mean = inits[,j]+ runif(2,-0.05,0.05), sd= rep(runif(1,0.8,1.2),2))
+  }
+  
+  #setting up model
+  NoCC_noFS_hid2 <- MarkovChain$new(data = NoCC_noFS, n_states = 2)
+  NoCC_noFS_obs2 <- Observation$new(data = NoCC_noFS, n_states = 2, dists = NoCC_dists, par = NoCC_inits2_noFS)
+  
+  NoCC_noFS_hmm2 <- HMM$new(obs = NoCC_noFS_obs2, hid = NoCC_noFS_hid2)
+  
+  #fit model
+  NoCC_noFS_hmm2$fit(silent = TRUE)
+  out<-NoCC_noFS_hmm2$out()
+  
+  if(out$convcode < 1){
+    AICs[i] <- NoCC_noFS_hmm2$AIC_conditional()
+    
+    if(AICs[i] < best_aic) {
+      best_model <- NoCC_noFS_hmm2
+      best_aic <- AICs[i]
+      print(best_aic)
+    }
+  }
+}
 
-
-#setting up model
-NoCC_noFS_hid2 <- MarkovChain$new(data = NoCC_noFS, n_states = 2)
-NoCC_noFS_obs2 <- Observation$new(data = NoCC_noFS, n_states = 2, dists = NoCC_dists, par = NoCC_inits2_noFS)
-
-NoCC_noFS_hmm2 <- HMM$new(obs = NoCC_noFS_obs2, hid = NoCC_noFS_hid2)
-
-#fit model
-NoCC_noFS_hmm2$fit(silent = TRUE)
+NoCC_noFS_hmm2<-best_model
 NoCC_noFS_hmm2$out()
 
 NoCC_noFS_hmm2$par() 
 NoCC_noFS_hmm2$viterbi() 
 
+
 NoCC_noFS_hmm2$AIC_conditional()
 
 #3-state
-NoCC_inits3_noFS<-list()
+#random initial values and model fitting
+AICs <- 0
+best_aic <- 1.0e10
+best_model<-NULL
+for(i in 1:200){
+  print(i)
+  NoCC_inits3_noFS<-NoCC_noFS_obs3<-NoCC_noFS_hmm3<-out1 <- NULL;
+  
+  #set up initial values
+  NoCC_inits3_noFS<-list()
+  inits<-kmeans(na.omit(NoCC_noFS[,NoCC_noFS_subset]), 3)$centers
+  for(j in 1:length(NoCC_noFS_subset)){
+    NoCC_inits3_noFS[[NoCC_noFS_subset[j]]]<-list(mean = inits[,j]+ runif(3,-0.05,0.05), sd= rep(runif(1,0.8,1.2),3))
+  }
+  
+  #setting up model
+  NoCC_noFS_hid3 <- MarkovChain$new(data = NoCC_noFS, n_states = 3)
+  NoCC_noFS_obs3 <- Observation$new(data = NoCC_noFS, n_states = 3, dists = NoCC_dists, par = NoCC_inits3_noFS)
+  
+  NoCC_noFS_hmm3 <- HMM$new(obs = NoCC_noFS_obs3, hid = NoCC_noFS_hid3)
+  
+  #fit model
+  NoCC_noFS_hmm3$fit(silent = TRUE)
+  out<-NoCC_noFS_hmm3$out()
+  
+  if(out$convcode < 1){
+    AICs[i] <- NoCC_noFS_hmm3$AIC_conditional()
+    
+    if(AICs[i] < best_aic) {
+      best_model <- NoCC_noFS_hmm3
+      best_aic <- AICs[i]
+      print(best_aic)
+    }
+  }
+}
 
-NoCC_inits3_noFS$BFAL<-list(mean = c(0.5,-0.3, -0.1), sd = c(1,1,1))
-NoCC_inits3_noFS$CAAU<-list(mean = c(-0.3, 0.5, 0.2), sd = c(1,1,1))
-NoCC_inits3_noFS$CATE<-list(mean = c(0.5, 0.1, -0.2), sd = c(1,1,1))
-NoCC_inits3_noFS$COMU<-list(mean = c(0, 0.8, 0.3), sd = c(1,1,1))
-#NoCC_inits3_noFS$GULL<-list(mean = c(0.2, 0.4, -0.1), sd = c(1,1,1))
-#NoCC_inits3_noFS$IMGU<-list(mean = c(0.3, -0.25, -0.1), sd = c(1,1,1))
-NoCC_inits3_noFS$NOFU<-list(mean = c(0.4, -0.1, 0), sd = c(1,1,1))
-NoCC_inits3_noFS$PFSH<-list(mean = c(-0.2, 0.3, -0.1), sd = c(1,1,1))
-NoCC_inits3_noFS$SOSH<-list(mean = c(0.3, -0.8, 0.5), sd = c(1,1,1))
-NoCC_inits3_noFS$WEGU<-list(mean = c(0.4,0, -0.1), sd = c(1,1,1))
-NoCC_inits3_noFS$WGGU<-list(mean = c(-0.5, 0.3, -0.1), sd = c(1,1,1))
 
-#setting up model
-NoCC_noFS_hid3 <- MarkovChain$new(data = NoCC_noFS, n_states = 3)
-NoCC_noFS_obs3 <- Observation$new(data = NoCC_noFS, n_states = 3, dists = NoCC_dists, par = NoCC_inits3_noFS)
-
-NoCC_noFS_hmm3 <- HMM$new(obs = NoCC_noFS_obs3, hid = NoCC_noFS_hid3)
-
-#fit model
-NoCC_noFS_hmm3$fit(silent = TRUE)
-NoCC_noFS_hmm3$out()
-
+NoCC_noFS_hmm3<-best_model
 NoCC_noFS_hmm3$par() 
 NoCC_noFS_hmm3$viterbi() 
 
@@ -129,7 +158,7 @@ NoCC_noFS_tab<-obs_ests %>%
   mutate(lower = qnorm(0.025, mean, sd), upper = qnorm(0.975, mean, sd))
 
 
-#write_csv(NoCC_noFS_tab, "Code/Results/NoCC_noFS_results_tab.csv")
+#write_csv(NoCC_noFS_tab, "Code/NoCC_noFS_results_tab.csv")
 
 #estimated states
 NoCC_noFS_sts<-tibble(Year = seq(2003, 2022, by = 1), state = NoCC_noFS_hmm2$viterbi())
