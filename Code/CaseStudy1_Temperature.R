@@ -144,15 +144,26 @@ Summ_table<-function(obspar, nstate ){
 #State 2 becomes state 1
 #state 3 becomes state 2
 #plotting like seabirds--model estimated means and confidence intervals plus data
+#getting real values of temperatures
+temp_means<-apply(stoplight2[, temp_indicators], 2, mean, na.rm = TRUE)
+temp_sd<-apply(stoplight2[, temp_indicators], 2, sd, na.rm = TRUE)
+
+#getting states
 temps_sts<-tibble(Year = seq(1998, 2022, by = 1), state = temps_hmm2$viterbi()) %>% mutate(new_state = ifelse(state == 1, 3, ifelse(state == 2, 1, 2)))
-temps_long_res<-temps_long %>% left_join(temps_sts, by = "Year") %>% mutate(time = Year-min(Year) + 1)
+temps_long_res<-temps_long %>% left_join(temps_sts, by = "Year") %>% 
+  mutate(time = Year-min(Year) + 1) %>%
+  mutate(Value_real = (Value * temp_sd[Indicator]) + temp_means[Indicator]) #adding in real values for plotting on real scale
+
 
 #observation model parameters at each time step
 obspar<-temps_hmm2$par(t = 1:25)
 obs_ests<-apply(obspar$obs, 3, Summ_table, nstate = 3)
 #combine
 obs_ests2<-bind_rows(obs_ests, .id = "time") %>% mutate(time = as.numeric(time)) %>% 
-  mutate(lower = qnorm(0.025, mean, sd), upper = qnorm(0.975, mean, sd))
+  mutate(lower = qnorm(0.025, mean, sd), upper = qnorm(0.975, mean, sd)) %>%
+  mutate(mean_real = (mean * temp_sd[Indicator]) + temp_means[Indicator], #adding in real values for plotting
+         lower_real = (lower * temp_sd[Indicator]) + temp_means[Indicator],
+         upper_real = (upper * temp_sd[Indicator]) + temp_means[Indicator])
 
 #ordering states from low to high temperature (1 is low, 3 is high)
 #state names stay the same
@@ -160,18 +171,19 @@ obs_ests2<-bind_rows(obs_ests, .id = "time") %>% mutate(time = as.numeric(time))
 names(pal)<-c("1", "3", "2")
 
 
+
 temps_long_res<- temps_long_res %>%left_join(obs_ests2, by = c("time", "Indicator", "state"))
 
-lab<-c("Sea surface\ntemperature (scaled)", "Summer temperature\nat 20 m (scaled)", "Winter temperature\nat 20 m (scaled)", "Summer temperature\nat 50 m (scaled)", "Summer salinity\nat 50 m (scaled)")
+lab<-c("Sea surface\ntemperature (°C)", "Summer temperature\nat 20 m (°C)", "Winter temperature\nat 20 m (°C)", "Summer temperature\nat 50 m (°C)", "Summer salinity\nat 50 m (°C)")
 
 names(lab)<-temp_indicators
 
 ggplot(temps_long_res) + 
-  geom_point(aes(x = Year, y = mean, color = as.factor(new_state), shape = as.factor(new_state))) +
-  geom_linerange(aes(x = Year, ymin = lower, ymax = upper, color = as.factor(new_state))) +
-  geom_point(aes(x = Year, y = Value)) + 
+  geom_point(aes(x = Year, y = mean_real, color = as.factor(new_state), shape = as.factor(new_state))) +
+  geom_linerange(aes(x = Year, ymin = lower_real, ymax = upper_real, color = as.factor(new_state))) +
+  geom_point(aes(x = Year, y = Value_real)) + 
   scale_x_continuous(breaks = seq(1998, 2022, by = 4)) +
-  facet_wrap(~factor(Indicator,levels = temp_indicators), scales = "free", strip.position = "left", 
+  facet_wrap(~factor(Indicator,levels = temp_indicators), strip.position = "left", 
              labeller = as_labeller(lab), nrow = 3) + 
   ylab(NULL) + 
   scale_color_manual(name = "State", values = pal) +
