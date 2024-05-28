@@ -122,7 +122,61 @@ temps_hmm2$coeff_fe()
 temps_hmm2$AIC_conditional()
 
 
+# Diagnostics -------------------------------------------------------------
+#read in model fit if needed:
+load("Results/physical_indicators_hmm.RData")
 
+#pseudo-residuals
+pr<-temps_hmm2$pseudores() #gives and error message
+#qqnorm(pr$SST)
+#acf(pr$SST)
+
+#gof simulation checks
+gofSST<-function(data){
+  s<-c(quantile(data$SST, seq(0,1, by = 0.25)), 
+       autocor = cor(data$SST[-1], data$SST[-nrow(data)]))
+}
+
+check_SST<-temps_hmm2$check(check_fn = gofSST, silent = TRUE, nsims = 1000)
+SST_plot<-check_SST$plot + ggtitle("Sea Surface Temperature") + xlab("value") + 
+  theme(axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank())
+
+gofSummer20m<-function(data){
+  s<-c(quantile(data$Summer20m, seq(0,1, by = 0.25)), 
+       autocor = cor(data$Summer20m[-1], data$Summer20m[-nrow(data)]))
+}
+
+check_Summer20m<-temps_hmm2$check(check_fn = gofSummer20m, silent = TRUE, nsims = 1000)
+S20m_plot<-check_Summer20m$plot + ggtitle("Summer Temperature at 20 m") + xlab("value") + 
+  theme(axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank())
+
+gofWinter20m<-function(data){
+  s<-c(quantile(data$Winter20m, seq(0,1, by = 0.25)), 
+       autocor = cor(data$Winter20m[-1], data$Winter20m[-nrow(data)]))
+}
+
+check_Winter20m<-temps_hmm2$check(check_fn = gofWinter20m, silent = TRUE, nsims = 1000)
+W20m_plot<-check_Winter20m$plot + ggtitle("Winter Temperature at 20 m") + xlab("value") + 
+  theme(axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank())
+
+gofDeepTemp<-function(data){
+  s<-c(quantile(data$DeepTemp, seq(0,1, by = 0.25)), 
+       autocor = cor(data$DeepTemp[-1], data$DeepTemp[-nrow(data)]))
+}
+
+check_DeepTemp<-temps_hmm2$check(check_fn = gofDeepTemp, silent = TRUE, nsims = 1000)
+DT_plot<-check_DeepTemp$plot + ggtitle("Summer Temperature at 50 m") + xlab("value") +
+  theme(axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank())
+
+#combine plots and save
+gof_plots<-SST_plot + S20m_plot + W20m_plot + DT_plot + 
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
+gof_plots
+ggsave("Figures/gof_plots_temps.png", gof_plots, dpi = 600)
 
 # Manuscript Plots --------------------------------------------------------
 #read in model fits if needed: 
@@ -222,18 +276,21 @@ mod_upr<-bind_rows(estimatesupr, .id = "time") %>% mutate(time = as.numeric(time
 mod_ests<-mod_ests %>% left_join(mod_lwr, by = c("time", "Indicator", "state")) %>% 
   left_join(mod_upr, by = c("time", "Indicator", "state"))
 
-#rename states
+#rename states and convert to real scale
 mod_ests1<-mod_ests %>% mutate(new_state = ifelse(state == 1, 3, ifelse(state == 2, 1, 2))) %>%
-  mutate(Year = time + 1997)
+  mutate(Year = time + 1997) %>% mutate(mean_real = (mean * temp_sd[Indicator]) + temp_means[Indicator], #adding in real values for plotting
+         lwr_real = (lwr * temp_sd[Indicator]) + temp_means[Indicator],
+         upr_real = (upr * temp_sd[Indicator]) + temp_means[Indicator])
 
 #plot
 plot2<-ggplot(mod_ests1) + 
-  geom_ribbon(aes(x = Year, ymin = lwr, ymax = upr, fill = as.factor(new_state), group = as.factor(new_state)), alpha = 0.4) +
-  geom_line(aes(x = Year, y = mean, color = as.factor(new_state), group = as.factor(new_state))) + 
-  facet_wrap(~factor(Indicator, levels = temp_indicators), scales = "free_y", labeller = as_labeller(lab), nrow = 3, strip.position = "left") + 
+  geom_ribbon(aes(x = Year, ymin = lwr_real, ymax = upr_real, fill = as.factor(new_state), group = as.factor(new_state)), alpha = 0.4) +
+  geom_line(aes(x = Year, y = mean_real, color = as.factor(new_state), group = as.factor(new_state))) + 
+  facet_wrap(~factor(Indicator, levels = temp_indicators), labeller = as_labeller(lab), scales = "free_y", nrow = 3, strip.position = "left") + 
   scale_color_manual(values = pal) + scale_fill_manual(values = pal) + 
   labs(y = NULL, x = "Year", fill = "State", color = "State") +
   scale_x_continuous(breaks = seq(1998, 2022, by = 4)) +
+  scale_y_continuous(expand = c(0,0), breaks = seq(7, 15, by = 0.5)) +
   theme_light() + 
   theme(strip.background = element_blank(), strip.placement = "outside", 
                         strip.text = element_text(color = "black", size = 13), 
